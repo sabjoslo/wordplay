@@ -1,7 +1,8 @@
 import os
 from setuptools import setup
 
-config_str="""
+config_str="""[settings]
+
 # Where your app's ID is stored in plain text
 APP_ID_FILE=''
 
