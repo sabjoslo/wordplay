@@ -4,19 +4,19 @@ from setuptools import setup
 config_str="""[settings]
 
 # Where your app's ID is stored in plain text
-APP_ID_FILE=''
+APP_ID_FILE=
 
 # Where your app's secret key is stored in plain text
-APP_SECRET_FILE=''
+APP_SECRET_FILE=
 
 # Where your API access token is stored in plain text
-ACCESS_TOKEN_FILE=''
+ACCESS_TOKEN_FILE=
 
 # User agent string to include in all requests to the API
-USER_AGENT=''
+USER_AGENT=
 
 # Log files will be stored in LOGGING_DIR.
-LOGGING_DIR='./'
+LOGGING_DIR=./
 """
 
 if not os.path.exists(os.path.expanduser('~/.collectors_config')):
