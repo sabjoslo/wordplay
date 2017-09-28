@@ -3,7 +3,11 @@ import random
 import re
 import string
 import time
-from config import *
+from config import settings
+ACCESS_TOKEN_FILE=settings['access_token_file']
+APP_ID_FILE=settings['app_id_file']
+APP_SECRET_FILE=settings['app_secret_file']
+LOGGING_DIR=settings['logging_dir']
 
 def getAccessToken():
     if not os.path.exists(ACCESS_TOKEN_FILE):

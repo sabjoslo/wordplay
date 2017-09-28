@@ -5,7 +5,6 @@ import random
 import requests
 import string
 import time
-from config import *
 from utils import *
 
 # A wrapper for functions to interact directly with the Graph API
