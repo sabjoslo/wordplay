@@ -5,7 +5,7 @@ APP_ID_FILE='/Users/sabinasloman/Desktop/.app_id'
 APP_SECRET_FILE='/Users/sabinasloman/Desktop/.app_secret'
 
 # Where your API access token is stored in plain text
-ACCESS_TOKEN_FILE='/Users/sabinasloman/Desktop/.access_token'
+ACCESS_TOKEN_FILE='/home/ssloman1/.access_token'
 
 # User agent string to include in all requests to the API
 # TODO: Update user agent string.

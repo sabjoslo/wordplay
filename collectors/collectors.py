@@ -23,18 +23,24 @@ class Request():
         if not url:
             url=self._format_request(**kwargs)
         while True:
-            logging.info('Sending request to '+url)
-            response=requests.get(url)
             try:
+                logging.info('Sending request to '+url)
+                response=requests.get(url)
                 assert response.status_code==200
                 return json.loads(response.content)
-            except AssertionError:
-                retval=self._failed_request_handler(response.content)
-                if not isinstance(retval, type(None)):
-                    return retval
+            except Exception as e:
+                if isinstance(e,AssertionError):
+                    retval=self._failed_request_handler(response.content)
+                    if not isinstance(retval, type(None)):
+                        return retval
+                    logging.info("""
+    Request failed with response {}: {}. Retrying.
+    """.format(response.status_code,response.content))
+                    continue
                 logging.info("""
-Request failed with response {}: {}. Retrying.
-""".format(response.status_code,response.content))
+    requests failed to make request with error {}. Retrying.
+    """.format(e))
+                time.sleep(1)
                 continue
 
     def _failed_request_handler(self, content_):
