@@ -40,11 +40,14 @@ def create_long_term_facebook_access_token():
     return token
 
 def startLog(log=True, id_=None):
-    import logging
-    kwargs_=dict(format='%(asctime)s : %(levelname)s : %(message)s',
-                 level=logging.INFO
-                )
     if log:
+        import logging
+        kwargs_=dict(format='%(asctime)s : %(levelname)s : %(message)s',
+                    level=logging.INFO
+                    )
         assert not isinstance(id_,type(None))
+        filename=LOGGING_DIR+id_+'.log'
+        fh=os.open(filename, os.O_CREAT, 0o600)
+        os.close(fh)
         kwargs_['filename']=LOGGING_DIR+id_+'.log'
         logging.basicConfig(**kwargs_)

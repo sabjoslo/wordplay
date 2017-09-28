@@ -16,7 +16,7 @@ ACCESS_TOKEN_FILE=''
 USER_AGENT=''
 
 # Log files will be stored in LOGGING_DIR.
-LOGGING_DIR=''
+LOGGING_DIR='./'
 """
 
 if not os.path.exists(os.path.expanduser('~/.collectors_config')):
