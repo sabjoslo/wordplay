@@ -51,3 +51,9 @@ def startLog(log=True, id_=None):
         os.close(fh)
         kwargs_['filename']=LOGGING_DIR+id_+'.log'
         logging.basicConfig(**kwargs_)
+
+def iso8601_to_unix(iso8601_str):
+    return time.mktime(time.strptime(iso8601_str,'%Y-%m-%dT%H:%M:%S'))
+
+def unix_to_iso8601(unix_str):
+    return time.strftime('%Y-%m-%dT%H:%M:%S',time.localtime(unix_str))
