@@ -93,3 +93,17 @@ class FacebookCollector(Request):
         if page:
             return self.get_data(url=nextval)
         return nextval
+
+class StackExchangeCollector(Request):
+    def __init__(self, log=True, id_=None):
+        Request.__init__(self, log=log, id_=id_)
+        self.BASE_URL='https://api.stackexchange.com/2.2/'
+
+    def _failed_request_handler(self, content_):
+        raise Exception(content_) 
+
+    def _format_request(self,objects,**kwargs):
+        header_str='/'.join(objects)+'?'
+        header_str+='&'.join('{}={}'.format(k,v) for k,v in kwargs.items())
+        return self.BASE_URL+header_str
+        
