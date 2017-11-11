@@ -1,18 +1,19 @@
+import logging
 import os
 import random
 import re
 import string
 import time
-from config import settings
-ACCESS_TOKEN_FILE=settings['access_token_file']
+from wordplay.config import settings
+PUBLIC_KEY_FILE=settings['public_key_file']
 APP_ID_FILE=settings['app_id_file']
-APP_SECRET_FILE=settings['app_secret_file']
+SECRET_KEY_FILE=settings['secret_key_file']
 LOGGING_DIR=settings['logging_dir']
 
-def getAccessToken():
-    if not os.path.exists(ACCESS_TOKEN_FILE):
-        return raw_input('Enter access token here: ').strip()
-    with open(ACCESS_TOKEN_FILE,'r') as fh:
+def getPublicKey():
+    if not os.path.exists(PUBLIC_KEY_FILE):
+        return raw_input('Enter public key here: ').strip()
+    with open(PUBLIC_KEY_FILE,'r') as fh:
         return fh.read().strip()
 
 def getAppID():
@@ -21,10 +22,10 @@ def getAppID():
     with open(APP_ID_FILE,'r') as fh:
         return fh.read().strip()
 
-def getAppSecret():
-    if not os.path.exists(APP_SECRET_FILE):
-        return raw_input('Enter app secret here: ').strip()
-    with open(APP_SECRET_FILE,'r') as fh:
+def getSecretKey():
+    if not os.path.exists(SECRET_KEY_FILE):
+        return raw_input('Enter secret key here: ').strip()
+    with open(SECRET_KEY_FILE,'r') as fh:
         return fh.read().strip()
 
 def create_long_term_facebook_access_token():
@@ -41,7 +42,6 @@ def create_long_term_facebook_access_token():
 
 def startLog(log=True, id_=None):
     if log:
-        import logging
         kwargs_=dict(format='%(asctime)s : %(levelname)s : %(message)s',
                     level=logging.INFO
                     )
@@ -51,9 +51,16 @@ def startLog(log=True, id_=None):
         os.close(fh)
         kwargs_['filename']=LOGGING_DIR+id_+'.log'
         logging.basicConfig(**kwargs_)
+    else:
+        logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',level=logging.INFO)
 
 def iso8601_to_unix(iso8601_str):
     return time.mktime(time.strptime(iso8601_str,'%Y-%m-%dT%H:%M:%S'))
 
 def unix_to_iso8601(unix_str):
     return time.strftime('%Y-%m-%dT%H:%M:%S',time.localtime(unix_str))
+
+# Encode a non-ASCII string to ASCII. If a non-ASCII character is encountered,
+# delete it.
+def to_ascii(s):
+    return s.encode('ascii', 'ignore')

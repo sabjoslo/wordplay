@@ -1,7 +1,7 @@
 import ConfigParser
 import os
 
-CONFIG_FILE=os.path.expanduser('~/.collectors_config')
+CONFIG_FILE=os.path.expanduser('~/.wordplay_config')
 
 configParser=ConfigParser.RawConfigParser()
 configParser.read(CONFIG_FILE)

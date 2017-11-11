@@ -1,10 +1,10 @@
-from collectors.collectors import InvalidUseException, Request
-from collectors.utils import *
+from wordplay.collectors import InvalidUseException, Request
+from wordplay.utils import *
 
 r=Request(log=False)
 
 def test_get_data():
-    r.get_data(url='https://graph.facebook.com/me?fields=id,name&access_token={}'.format(getAccessToken()))
+    r.get_data(url='https://graph.facebook.com/me?fields=id,name&access_token={}'.format(getPublicKey()))
 
     caught=False
     try:
