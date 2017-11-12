@@ -166,15 +166,17 @@ class sentences():
 
     # Generate and remove extraneous punctuation from tokens. If training =
     # True, tokens are used to train a phrase-detection model.
-    def tokenize_(self,sentence,training=False, lemmatize=True):
+    def tokenize_(self, sentence, training=False, lemmatize=True,
+                  html_elements_to_exclude=[]):
         # Much of this taken from 
         # https://www.analyticsvidhya.com/blog/2017/04/natural-language-processing-made-easy-using-spacy-%e2%80%8bin-python/
 
         # Remove HTML formatting and hyperlinks
         soup=BeautifulSoup(sentence, "html5lib")
         sentence=soup.get_text()
-        for link in soup.find_all('a'):
-            sentence=sentence.replace(link.get_text(),'')
+        for element in html_elements_to_exclude:
+            for el in soup.find_all(element):
+                sentence=sentence.replace(el.get_text(),'')
 
         # Return the lemma of each token. Exclude pronouns, stopwords and
         # punctuation.
