@@ -52,6 +52,14 @@ def test_tokenize_():
     tokens=sentences().tokenize_(sentence)
     assert tokens==['user','test','sentence']
 
+    sentence='<a>test</a> <code>this is a test</code> <a>that is a test</a> also a test <blockquote>this is a test</blockquote>'
+    tokens=sentences().tokenize_(sentence, html_elements_to_exclude=['a'])
+    assert tokens==['test','also','test','test']
+    tokens=sentences().tokenize_(sentence, html_elements_to_exclude=['a','code'])
+    assert tokens==['also','test','test']
+    tokens=sentences().tokenize_(sentence, html_elements_to_exclude=['a','code','blockquote'])
+    assert tokens==['also','test']
+
 def test_token_distributions():
     testTD=token_distributions(files=os.path.dirname(os.path.realpath(__file__))+'/.fake_data')
     # Test build_corpus

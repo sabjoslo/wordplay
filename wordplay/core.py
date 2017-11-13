@@ -173,10 +173,10 @@ class sentences():
 
         # Remove HTML formatting and hyperlinks
         soup=BeautifulSoup(sentence, "html5lib")
-        sentence=soup.get_text()
         for element in html_elements_to_exclude:
             for el in soup.find_all(element):
-                sentence=sentence.replace(el.get_text(),'')
+                el.extract()
+        sentence=soup.get_text()
 
         # Return the lemma of each token. Exclude pronouns, stopwords and
         # punctuation.
