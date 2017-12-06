@@ -113,7 +113,15 @@ class StackExchangeCollector(Request):
     def _format_request(self,objects,**kwargs):
         header_str='/'.join(objects)+'?'
         header_str+='&'.join('{}={}'.format(k,v) for k,v in kwargs.items())
+        access_token_str='&access_token='+getPublicKey()
+        header_str+=access_token_str
+        key_str='&key='+getSecretKey()
+        header_str+=key_str
         return self.BASE_URL+header_str
+
+    def check_backoff(self, json_obj):
+        if 'backoff' in json_obj:
+            time.sleep(json_obj['backoff'])
  
 class DisqusCollector(Request):
     def __init__(self, forum, include=['unapproved','approved','flagged',
