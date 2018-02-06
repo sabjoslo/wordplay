@@ -13,7 +13,6 @@ from gensim.models import Word2Vec
 from gensim.models.phrases import Phraser, Phrases
 from nltk import FreqDist, MLEProbDist
 import spacy
-tokenizer=spacy.load('en_core_web_sm')
 from nltk.corpus import stopwords
 stop_words=set(stopwords.words('english'))
 from wordplay.utils import *
@@ -117,23 +116,37 @@ class sentences():
     """A handler to generate tokens from the words in a tsv file.
     """
 
-    def __init__(self, phrase_model=None):
+    def __init__(self, phrase_model=None, lemmatize=True,
+                 spacy_model='en_core_web_sm'):
         startLog(log=False)
 
         # Initialize phrase-detector
         self.phrases=self.get_phraser(fn=phrase_model)
         self.phraser=Phraser(self.phrases)
 
+        # Initialize tokenizer
+        if lemmatize:
+            self.tokenizer=spacy.load(spacy_model)
+
+    # Reset file handlers
+    def reset_all(self):
+        for f in self.files:
+            f.seek(0)
+
     # Declare and initialize handler for tsv file to be read from.
-    def open_file(self,fn,column=None):
-        self.fn=open(fn,'r')
-        self.headers=self.fn.readline().strip('\n').split('\t')
-        # Reset file handler's line count
-        self.fn.seek(0)
+    def open_files(self, fns, headers=False, column=None):
+        self.files=[ open(fn,'r') for fn in fns ]
+        if headers:
+            get_headers=lambda f:tuple(f.readline().strip('\n').split('\t'))
+            headers=set([ get_headers(f) for f in self.files ])
+            assert len(headers)==1, "Headers don't match."
+            self.headers=headers[0]
+            self.reset_all()
         self.column=column
 
-    def close_file(self):
-        self.fn.close()
+    def close_files(self):
+        for f in self.files:
+            f.close()
 
     # Generates "sentences" from the tsv file of the form sentence =
     # [['word0','word1','word2'],['word3','word4','word5']]. The class
@@ -141,33 +154,34 @@ class sentences():
     # If training is set to True, sentences will be passed to the class's
     # phrase-detection model to train it to generate phrasegrams.
     def tokens_from_tsv(self):
-        self.fn.seek(0)
+        self.reset_all()
         
-        # Discard header row
-        self.fn.readline()
-        assert self.column in self.headers
-        col_ix=self.headers.index(self.column)
-        line=self.fn.readline().split('\t')
-        while any([ l.strip() for l in line ]):
-            yield self.tokenize_(to_ascii(line[col_ix].strip()))
-            line=self.fn.readline().split('\t')
+        for f in self.files:
+            # Discard header row
+            f.readline()
+            col_ix=self.headers.index(self.column)
+            line=f.readline().split('\t')
+            while any([ l.strip() for l in line ]):
+                yield self.tokenize_(to_ascii(line[col_ix].strip()))
+                line=f.readline().split('\t')
 
-    def tokens_from_plain_text(self,training=False):
-        self.fn.seek(0)
-        line=self.fn.readline()
-        while len(line)>0:
-            if line.strip():
-                yield self.tokenize_(to_ascii(line.strip()),
-                                    training=training)
-            line=self.fn.readline()
+    def tokens_from_plain_text(self, training=False):
+        self.reset_all()
+
+        for f in self.files:
+            line=f.readline()
+            while len(line)>0:
+                if line.strip():
+                    yield self.tokenize_(to_ascii(line.strip()),
+                                         training=training)
+                line=f.readline()
 
     def __iter__(self):
         return self.tokens_from_plain_text()
 
     # Generate and remove extraneous punctuation from tokens. If training =
     # True, tokens are used to train a phrase-detection model.
-    def tokenize_(self, sentence, training=False, lemmatize=True,
-                  html_elements_to_exclude=[]):
+    def tokenize_(self, sentence, training=False, html_elements_to_exclude=[]):
         # Much of this taken from 
         # https://www.analyticsvidhya.com/blog/2017/04/natural-language-processing-made-easy-using-spacy-%e2%80%8bin-python/
 
@@ -180,8 +194,8 @@ class sentences():
 
         # Return the lemma of each token. Exclude pronouns, stopwords and
         # punctuation.
-        if lemmatize:
-            words=tokenizer(sentence)
+        if self.lemmatize:
+            words=self.tokenizer(sentence)
             lemmas=[ word.lemma_ for word in words 
                      if word.lemma_ != '-PRON-' ]
             lemmas=[ re.sub('[%s]'%re.escape(string.punctuation),'',lemma)
