@@ -194,7 +194,7 @@ class sentences():
 
         # Return the lemma of each token. Exclude pronouns, stopwords and
         # punctuation.
-        if self.lemmatize:
+        if hasattr(self, "tokenizer"):
             words=self.tokenizer(sentence)
             lemmas=[ word.lemma_ for word in words 
                      if word.lemma_ != '-PRON-' ]
