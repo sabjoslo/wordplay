@@ -14,7 +14,6 @@ from gensim.models.phrases import Phraser, Phrases
 from nltk import FreqDist, MLEProbDist
 import spacy
 from nltk.corpus import stopwords
-stop_words=set(stopwords.words('english'))
 from wordplay.utils import *
 
 class Vector():
@@ -117,7 +116,8 @@ class sentences():
     """
 
     def __init__(self, phrase_model=None, format_="plaintext", lemmatize=True,
-                 spacy_model='en_core_web_sm', html_elements_to_exclude=[]):
+                 spacy_model='en_core_web_sm', html_elements_to_exclude=[],
+                 stop_words=set(stopwords.words('english'))):
         startLog(log=False)
 
         # Initialize phrase-detector
@@ -132,6 +132,8 @@ class sentences():
             self.tokenizer=spacy.load(spacy_model)
 
         self.html_elements_to_exclude=html_elements_to_exclude
+
+        self.stop_words = stop_words
 
     def _get_headers(self, fn):
         with open(fn, "r") as fh:
@@ -202,7 +204,7 @@ class sentences():
             lemmas=[ word.lower() for word in 
                      sentence.replace('\n',' ').split() ]
 
-        tokens=[ token for token in lemmas if ( token not in stop_words and
+        tokens=[ token for token in lemmas if ( token not in self.stop_words and
                  token.strip() )]
 
         if training:
