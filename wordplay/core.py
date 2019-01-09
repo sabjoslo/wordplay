@@ -10,13 +10,11 @@ import pandas as pd
 import re
 import string
 from bs4 import BeautifulSoup
-from gensim.models import Word2Vec
+from gensim.models import KeyedVectors, Word2Vec
 from gensim.models.phrases import Phraser, Phrases
 from nltk import FreqDist, MLEProbDist
 import spacy
-tokenizer=spacy.load('en_core_web_sm')
 from nltk.corpus import stopwords
-stop_words=set(stopwords.words('english'))
 from wordplay.utils import *
 
 class Vector():
@@ -49,7 +47,7 @@ class Vector():
 
     # Computes the KL-divergence of this instance of a Vector w.r.t. another
     # vector
-    def kl_divergence(self,q,column=None):  
+    def kl_divergence(self,q,column=None):
         assert hasattr(q,'df')
         assert self._indices_match(q.df)
         if isinstance(column,type(None)):
@@ -63,7 +61,7 @@ class Vector():
             kld+=q_i*math.log((q_i/p_i),2)
         """
         calc_kld=lambda pi,qi:qi*math.log((qi/pi),2)
-        kld=sum([ calc_kld(pi,qi) for pi,qi in zip(self.df[column],q.df[column])])   
+        kld=sum([ calc_kld(pi,qi) for pi,qi in zip(self.df[column],q.df[column])])
         return kld
 
     def mixture(self,q,column=None):
@@ -91,7 +89,7 @@ class Vector():
         Hq=q.entropy()
         return Hm-.5*(Hp+Hq)
 
-    def partial_kl(self,q,which,column=None):  
+    def partial_kl(self,q,which,column=None):
         assert hasattr(q,'df')
         if isinstance(column,type(None)):
             assert len(self.df.columns)==len(q.df.columns)==1
@@ -121,81 +119,96 @@ class sentences():
     """A handler to generate tokens from the words in a tsv file.
     """
 
-    def __init__(self, phrase_model=None):
+    def __init__(self, phrase_model=None, format_="plaintext", lemmatize=True,
+                 spacy_model='en_core_web_sm', html_elements_to_exclude=[],
+                 stop_words=set(stopwords.words('english'))):
         startLog(log=False)
 
         # Initialize phrase-detector
         self.phrases=self.get_phraser(fn=phrase_model)
         self.phraser=Phraser(self.phrases)
 
-    # Declare and initialize handler for tsv file to be read from.
-    def open_file(self,fn,column=None):
-        self.fn=open(fn,'r')
-        self.headers=self.fn.readline().strip('\n').split('\t')
-        # Reset file handler's line count
-        self.fn.seek(0)
+        assert format_ in ( "tsv", "plaintext" )
+        self.format_=format_
+
+        # Initialize tokenizer
+        if lemmatize:
+            self.tokenizer=spacy.load(spacy_model)
+
+        self.html_elements_to_exclude=html_elements_to_exclude
+
+        self.stop_words = stop_words
+
+    def _get_headers(self, fn):
+        with open(fn, "r") as fh:
+            headers=fh.readline().strip("\n").split("\t")
+        return headers
+
+    def open_files(self, fns, headers=False, column=None):
+        self.files=fns
+        if headers:
+            headers=set([ _get_headers(f) for f in self.files ])
+            assert len(headers)==1, "Headers don't match."
+            self.headers=headers[0]
         self.column=column
 
-    def close_file(self):
-        self.fn.close()
-
-    # Generates "sentences" from the tsv file of the form sentence =
-    # [['word0','word1','word2'],['word3','word4','word5']]. The class
-    # attribute column specifies the column of the file to be read from.
-    # If training is set to True, sentences will be passed to the class's
+    # Generates "sentences" from the class's files of the form sentence =
+    # [['word0','word1','word2'],['word3','word4','word5']]. If format_=="tsv",
+    # the class attribute column specifies the column of the file to be read
+    # from. If training is set to True, sentences will be passed to the class's
     # phrase-detection model to train it to generate phrasegrams.
-    def tokens_from_tsv(self):
-        self.fn.seek(0)
-        
-        # Discard header row
-        self.fn.readline()
-        assert self.column in self.headers
-        col_ix=self.headers.index(self.column)
-        line=self.fn.readline().split('\t')
-        while any([ l.strip() for l in line ]):
-            yield self.tokenize_(to_ascii(line[col_ix].strip()))
-            line=self.fn.readline().split('\t')
+    def get_all_tokens(self, training=False):
+        if self.format_=="tsv":
+            for f in self.files:
+                with open(f, "r") as fh:
+                    # Discard header row
+                    fh.readline()
+                    col_ix=self.headers.index(self.column)
+                    line=fh.readline().split('\t')
+                    while any([ l.strip() for l in line ]):
+                        yield self.tokenize_(to_ascii(line[col_ix].strip()))
+                        line=fh.readline().split('\t')
 
-    def tokens_from_plain_text(self,training=False):
-        self.fn.seek(0)
-        line=self.fn.readline()
-        while len(line)>0:
-            if line.strip():
-                yield self.tokenize_(to_ascii(line.strip()),
-                                    training=training)
-            line=self.fn.readline()
+        elif self.format_=="plaintext":
+            for f in self.files:
+                with open(f, "r") as fh:
+                    line=fh.readline()
+                    while len(line)>0:
+                        if line.strip():
+                            yield self.tokenize_(to_ascii(line.strip()),
+                                                 training=training)
+                        line=fh.readline()
 
     def __iter__(self):
-        return self.tokens_from_plain_text()
+        return self.get_all_tokens()
 
     # Generate and remove extraneous punctuation from tokens. If training =
     # True, tokens are used to train a phrase-detection model.
-    def tokenize_(self, sentence, training=False, lemmatize=True,
-                  html_elements_to_exclude=[]):
-        # Much of this taken from 
+    def tokenize_(self, sentence, training=False):
+        # Much of this taken from
         # https://www.analyticsvidhya.com/blog/2017/04/natural-language-processing-made-easy-using-spacy-%e2%80%8bin-python/
 
         # Remove HTML formatting and hyperlinks
         soup=BeautifulSoup(sentence, "html5lib")
-        for element in html_elements_to_exclude:
+        for element in self.html_elements_to_exclude:
             for el in soup.find_all(element):
                 el.extract()
         sentence=soup.get_text()
 
         # Return the lemma of each token. Exclude pronouns, stopwords and
         # punctuation.
-        if lemmatize:
-            words=tokenizer(sentence)
-            lemmas=[ word.lemma_ for word in words 
+        if hasattr(self, "tokenizer"):
+            words=self.tokenizer(sentence)
+            lemmas=[ word.lemma_ for word in words
                      if word.lemma_ != '-PRON-' ]
             lemmas=[ re.sub('[%s]'%re.escape(string.punctuation),'',lemma)
                      for lemma in lemmas ]
         else:
             sentence=re.sub('[%s]'%re.escape(string.punctuation),' ',sentence)
-            lemmas=[ word.lower() for word in 
+            lemmas=[ word.lower() for word in
                      sentence.replace('\n',' ').split() ]
 
-        tokens=[ token for token in lemmas if ( token not in stop_words and
+        tokens=[ token for token in lemmas if ( token not in self.stop_words and
                  token.strip() )]
 
         if training:
@@ -219,11 +232,22 @@ class sentences():
             return Phrases()
 
     def train_phrase_detector(self,fn=None):
-        for sentence in self.tokens_from_plain_text(training=True):
+        for sentence in self.get_all_tokens(training=True):
             pass
 
     def save_phrase_model(self,fn):
         self.phrases.save(fn)
+
+class corpus():
+    def __init__(self, fn):
+        self.fn=fn
+
+    def __iter__(self):
+        with open(self.fn, "r") as fh:
+            line=fh.readline()
+            while len(line)>0:
+                yield line.split()
+                line=fh.readline()
 
 class token_distributions():
     def __init__(self,corpus=None,corpusfn=None,tokenfiles=None,
@@ -245,7 +269,7 @@ class token_distributions():
 
     def set_phrase_model(self,phrase_model=None):
         self.filehandler=sentences(phrase_model=phrase_model)
-       
+
     def build_corpus(self,tsv=True,column='TEXT'):
         self.corpus=[]
         if tsv:
@@ -261,7 +285,7 @@ class token_distributions():
         self.filehandler.close_file()
 
     # Save this instance's corpus to disk so it can be quickly accessed
-    # later. The file is saved in plain text, with words separated by a 
+    # later. The file is saved in plain text, with words separated by a
     # space and sentences separated by a new line. It is by default saved in
     # VOCAB_DIR and is included in the package's recognized vocabulary.
     def save_corpus(self,fn):
@@ -286,18 +310,18 @@ class token_distributions():
         else:
             factor=1
         if not isinstance(vocab, type(None)) and not smoothing:
-            vocab=dict(zip(vocab,[0]*len(vocab))) 
+            vocab=dict(zip(vocab,[0]*len(vocab)))
         self.freq_dist=FreqDist(samples=vocab)
         if len(self.corpus)==0:
             corpus_=[]
         elif ( not isinstance(self.corpus[0],basestring) and
                hasattr(self.corpus[0], '__iter__') ):
-            corpus_=[ t for tokens in self.corpus for t in tokens ] 
+            corpus_=[ t for tokens in self.corpus for t in tokens ]
         else:
             corpus_=self.corpus
         for token in corpus_:
             self.freq_dist[token]+=1*factor
-   
+
     def estimate_prob_dist(self):
         self.prob_dist=MLEProbDist(self.freq_dist)
 
@@ -315,11 +339,14 @@ class token_distributions():
         self.vector=Vector()
         self.vector.build(index=vocab, data=data_, columns='est_prob')
 
-    def word2vec_(self,fname=None):
-        model=Word2Vec(self.corpus)
-        if isinstance(fname,basestring):
-            model.save(fname)
-        return model
+    def word2vec_(self, fname, reload_=True):
+        if os.path.exists(fname) and not reload_:
+            self.w2v=KeyedVectors.load(fname)
+        else:
+            model=Word2Vec(self.corpus)
+            w2v=model.wv
+            w2v.save(fname)
+            self.w2v=KeyedVectors.load(fname)
 
 if __name__=='__main__':
     pass
