@@ -1,5 +1,6 @@
 from __future__ import division
 
+from collections import defaultdict
 import logging
 import math
 import matplotlib.pyplot as plt
@@ -56,10 +57,13 @@ class Vector():
             assert self.df.columns==q.df.columns
             column=self.df.columns[0]
         kld=0
-        for i in self.df.index:
+        """for i in self.df.index:
             p_i=self.df.loc[i][column]
             q_i=q.df.loc[i][column]
             kld+=q_i*math.log((q_i/p_i),2)
+        """
+        calc_kld=lambda pi,qi:qi*math.log((qi/pi),2)
+        kld=sum([ calc_kld(pi,qi) for pi,qi in zip(self.df[column],q.df[column])])   
         return kld
 
     def mixture(self,q,column=None):
@@ -222,15 +226,21 @@ class sentences():
         self.phrases.save(fn)
 
 class token_distributions():
-    def __init__(self,corpus=None,files=None,phrase_model=None):
-        assert ( not isinstance(corpus,type(None)) or 
-                 not isinstance(files,type(None)) )
+    def __init__(self,corpus=None,corpusfn=None,tokenfiles=None,
+                 phrase_model=None):
+        assert ( not isinstance(corpus,type(None)) or
+                 not isinstance(corpusfn,type(None)) or
+                 not isinstance(tokenfiles,type(None)) )
+        assert not ( not isinstance(corpus, type(None)) and
+                     not isinstance(corpusfn, type(None)) )
         if not isinstance(corpus,type(None)):
-            self.load_corpus(corpus)
-        if isinstance(files,basestring):
-            self.files=[files]
+            self.corpus=corpus
+        if not isinstance(corpusfn,type(None)):
+            self.load_corpus(corpusfn)
+        if isinstance(tokenfiles,basestring):
+            self.tokenfiles=[tokenfiles]
         else:
-            self.files=files
+            self.tokenfiles=tokenfiles
         self.set_phrase_model(phrase_model)
 
     def set_phrase_model(self,phrase_model=None):
@@ -239,12 +249,12 @@ class token_distributions():
     def build_corpus(self,tsv=True,column='TEXT'):
         self.corpus=[]
         if tsv:
-            for f in self.files:
+            for f in self.tokenfiles:
                 self.filehandler.open_file(f,column)
                 for sentence in self.filehandler.tokens_from_tsv():
                     self.corpus.append(sentence)
         else:
-            for f in self.files:
+            for f in self.tokenfiles:
                 self.filehandler.open_file(f)
                 for sentence in self.filehandler.tokens_from_plain_text():
                     self.corpus.append(sentence)
@@ -269,11 +279,25 @@ class token_distributions():
         self.corpus=[ s.split() for s in fh.read().split('\n') ]
         fh.close()
 
-    def calculate_freq_dist(self):
-        self.freq_dist=FreqDist()
-        for token in [ t for tokens in self.corpus for t in tokens ]:
-            self.freq_dist[token]+=1
-
+    def calculate_freq_dist(self, smoothing=False, vocab=None, factor=1e4):
+        if smoothing:
+            assert not isinstance(vocab, type(None))
+            vocab=dict(zip(vocab,[1]*len(vocab)))
+        else:
+            factor=1
+        if not isinstance(vocab, type(None)) and not smoothing:
+            vocab=dict(zip(vocab,[0]*len(vocab))) 
+        self.freq_dist=FreqDist(samples=vocab)
+        if len(self.corpus)==0:
+            corpus_=[]
+        elif ( not isinstance(self.corpus[0],basestring) and
+               hasattr(self.corpus[0], '__iter__') ):
+            corpus_=[ t for tokens in self.corpus for t in tokens ] 
+        else:
+            corpus_=self.corpus
+        for token in corpus_:
+            self.freq_dist[token]+=1*factor
+   
     def estimate_prob_dist(self):
         self.prob_dist=MLEProbDist(self.freq_dist)
 
